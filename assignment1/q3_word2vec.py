@@ -15,7 +15,7 @@ def normalizeRows(x):
     """
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    x /= np.sqrt(np.sum(x * x, axis=1, keepdims=True))
     ### END YOUR CODE
 
     return x
@@ -58,7 +58,14 @@ def softmaxCostAndGradient(predicted, target, outputVectors, dataset):
     """
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    scores = outputVectors.dot(predicted)
+    y = softmax(scores)
+    cost = - np.log(y[target])
+
+    dscores = y.copy()
+    dscores[target] -= 1
+    gradPred = outputVectors.T.dot(dscores)
+    grad = np.outer(dscores, predicted)
     ### END YOUR CODE
 
     return cost, gradPred, grad
@@ -96,7 +103,20 @@ def negSamplingCostAndGradient(predicted, target, outputVectors, dataset,
     indices.extend(getNegativeSamples(target, dataset, K))
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+
+    grad = np.zeros(outputVectors.shape)
+
+    u0 = outputVectors[target]
+    samples = outputVectors[indices[1:]]
+    s0 = sigmoid(u0.dot(predicted))
+    sk = sigmoid(-samples.dot(predicted))
+    cost = -np.log(s0) - np.sum(np.log(sk))
+
+    gradPred = (s0 - 1) * u0 - np.sum((sk - 1)[:,np.newaxis] * samples, axis=0)
+
+    np.add.at(grad, indices[1:], - (sk - 1)[:,np.newaxis] * predicted)
+    grad[target] = (s0 - 1) * predicted
+
     ### END YOUR CODE
 
     return cost, gradPred, grad
@@ -131,7 +151,18 @@ def skipgram(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
     gradOut = np.zeros(outputVectors.shape)
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    center_index = tokens[currentWord]
+    center_word_v = inputVectors[center_index]
+
+    for context_word in contextWords:
+        context_word_index = tokens[context_word]
+
+        c, gradPred, grad = word2vecCostAndGradient(center_word_v, context_word_index, outputVectors, dataset)
+
+        cost += c
+        gradIn[center_index] += gradPred
+        gradOut += grad
+
     ### END YOUR CODE
 
     return cost, gradIn, gradOut
@@ -154,8 +185,18 @@ def cbow(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
     gradIn = np.zeros(inputVectors.shape)
     gradOut = np.zeros(outputVectors.shape)
 
+    center_word_v = np.zeros(inputVectors.shape[1])
+    indices = np.zeros(2 * C, np.int32)
     ### YOUR CODE HERE
-    raise NotImplementedError
+    for i, context_word in enumerate(contextWords):
+        context_word_index = tokens[context_word]
+        center_word_v += inputVectors[context_word_index]
+        indices[i] = int(context_word_index)
+
+    cost, gradPred, grad = word2vecCostAndGradient(center_word_v, context_word_index, outputVectors, dataset)
+
+    np.add.at(gradIn, indices, gradPred)
+    gradOut += grad
     ### END YOUR CODE
 
     return cost, gradIn, gradOut
